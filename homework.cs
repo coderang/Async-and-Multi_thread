@@ -31,7 +31,27 @@ public class Database
         await Task.Delay(100); // 模拟网络延迟
 
         // TODO: 使用 lock 语句保证线程安全
-        // 提示：在 lock 块中查找书籍并更新库存，若库存不足则输出提示
+        // 提示：在 lock 块中查找书籍并更新库存，若库存不足则输出提示 
+        lock (_lock)
+        {
+            var book = _books.Find(b => b.Title == title);
+            if (book != null)
+            {
+                if (book.Inventory >= quantity)
+                {
+                    book.Inventory -= quantity;
+                    Console.WriteLine($"成功购买 {quantity} 本《{title}》。");
+                }
+                else
+                {
+                    Console.WriteLine($"库存不足，无法购买 {quantity} 本《{title}》。当前库存：{book.Inventory} 本。");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"书籍《{title}》不存在。");
+            }
+        }
     }
 }
 
@@ -42,6 +62,14 @@ public class BookStore
     // TODO: 实现异步购书方法CheckoutAsync，调用 UpdateInventoryAsync
     public async Task CheckoutAsync(string bookTitle, int quantity)
     {
+        try
+        {
+            await _db.UpdateInventoryAsync(bookTitle, quantity);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"购买《{bookTitle}》时出错：{ex.Message}");
+        }
     }
 
     public async Task SimulateMultipleUsers()
@@ -50,7 +78,7 @@ public class BookStore
         Console.WriteLine("当前书店库存：");
         foreach (var book in books)
         {
-            Console.WriteLine($"- {book.Title}：{book.Inventory} 本");
+            Console.WriteLine($"- {book.Title}：{book.Inventory} 本"); 
         }
 
         Console.WriteLine("\n 开始模拟多用户购书...\n");
@@ -59,9 +87,14 @@ public class BookStore
         // 提示：创建多个 Task 调用 CheckoutAsync，并传入不同书名和数量
         var tasks = new List<Task>
         {
-            
+            CheckoutAsync("C#入门", 2),
+            CheckoutAsync("C#入门", 3),
+            CheckoutAsync("异步编程", 1),
+            CheckoutAsync("异步编程", 2),
+            CheckoutAsync("异步编程", 3),
         };
-
+        await Task.WhenAll(tasks);
+        Console.WriteLine("\n多用户购书模拟结束。");
 
         Console.WriteLine("\n购买后库存：");
         books = await _db.GetBooksAsync();
